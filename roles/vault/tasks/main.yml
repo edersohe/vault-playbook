@@ -1,0 +1,44 @@
+---
+- name: Add vault group
+  ansible.builtin.group:
+    name: vault
+    state: present
+
+- name: Add vault user
+  ansible.builtin.user:
+    name: vault
+    system: yes
+    shell: /sbin/nologin
+    group: vault
+    state: present
+
+- name: Create install directory tree
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: vault
+    group: vault
+    mode: 0700
+  loop:
+    - "{{ install_path }}/vault/bin"
+    - "{{ install_path }}/vault/data"
+    - "{{ install_path }}/vault/conf/certs"
+    - "{{ install_path }}/vault/log"
+
+- name: Create vault config
+  ansible.builtin.template: 
+    src: vault.hcl.j2
+    dest: "{{ install_path }}/vault/conf/vault.hcl"
+    owner: vault
+    group: vault
+    mode: 0600
+
+- name: Copy vault binary
+  copy:
+    src: vault
+    dest: "{{ install_path }}/vault/bin/"
+    owner: vault
+    group: vault
+    mode: 0700
+  

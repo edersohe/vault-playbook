@@ -62,6 +62,7 @@
       - nfs-utils
       - rsync
       - openldap-clients
+      - unzip
     state: present
 - name: Configure a locale {{ locale_lang }}
   shell: LANG_BACKUP=$(cat /etc/locale.conf) ; localectl set-locale LANG="{{ locale_lang }}" && echo $LANG_BACKUP

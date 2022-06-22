@@ -2,7 +2,19 @@
 - name: Common tasks
   hosts: common
   gather_facts: no
+  vars:
+    - group: common
   roles:
     - name: Update S.O. and support ansible automation
       role: common
-      tags: common
+      tags: "{{ group }}"
+- name: Vault primary cluster tasks
+  hosts: primary_cluster
+  gather_facts: yes
+  become: yes
+  vars:
+    - group: primary_cluster
+  roles:
+    - name: Create a vault cluster
+      role: vault
+      tags: "{{ group }}"
