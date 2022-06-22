@@ -1,0 +1,83 @@
+---
+- name: Add ssh public key to root
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', public_key) }}"
+- name: Change ansible_user to root
+  ansible.builtin.set_fact:
+    ansible_user: root
+    ansible_ssh_private_key_file: "{{ private_key }}"
+- name: Reconnect with root
+  meta: reset_connection
+- name: Prepare nodes to be managed by ansible
+  include_role:
+    name: robertdebock.bootstrap
+- name: Remove ssh public key to root
+  ansible.posix.authorized_key:
+    user: root
+    state: absent
+    key: "{{ lookup('file', public_key) }}"
+- name: Allow 'wheel' group to have passwordless sudo
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%wheel ALL='
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: /usr/sbin/visudo -cf %s
+- name: Add sudoer user devops
+  ansible.builtin.user:
+    name: devops
+    shell: /bin/bash
+    groups: wheel
+    append: yes
+- name: Add ssh public key to devops
+  ansible.posix.authorized_key:
+    user: devops
+    state: present
+    key: "{{ lookup('file', public_key) }}"
+- name: Change ansible_user to devops
+  set_fact:
+    ansible_user: devops
+- name: Reconnect with devops
+  meta: reset_connection
+- name: Add powertools repository for Enterprise Linux 8.x
+  include_role:
+    name: robertdebock.powertools
+- name: Add EPEL repository
+  include_role:
+    name: geerlingguy.repo-epel
+- name: Update packages from repositories
+  yum:
+    name: '*'
+    state: latest
+- name: Install basic and troubleshooting tools
+  yum:
+    name:
+      - netcat
+      - net-tools
+      - tcpdump
+      - bind-utils
+      - util-linux
+      - nfs-utils
+      - rsync
+      - openldap-clients
+    state: present
+- name: Configure a locale {{ locale_lang }}
+  shell: LANG_BACKUP=$(cat /etc/locale.conf) ; localectl set-locale LANG="{{ locale_lang }}" && echo $LANG_BACKUP
+  register: lang_backup
+  changed_when: lang_backup.stdout != "LANG=" + locale_lang
+- name: Set timezone to {{ time_zone }}
+  community.general.timezone:
+    name: "{{ time_zone }}"
+- name: Configure chronyd as NTP client for {{ ntp_server }}
+  include_role:
+    name: geerlingguy.ntp
+  vars:
+    ntp_enabled: "{{ false if ansible_product_name == 'VirtualBox' else true }}"
+    ntp_timezone: "{{ time_zone }}"
+    ntp_manage_config: true
+    ntp_servers:
+      - "{{ ntp_server }} iburst"
+- name: Reboot after finished common tasks
+  reboot:

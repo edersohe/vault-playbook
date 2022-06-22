@@ -1,0 +1,10 @@
+---
+roles:
+  - name: geerlingguy.ntp
+  - name: geerlingguy.repo-epel
+  - name: robertdebock.bootstrap
+  - name: robertdebock.powertools
+
+collections:
+  - name: ansible.posix
+  - name: community.general

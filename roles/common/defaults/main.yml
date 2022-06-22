@@ -1,0 +1,6 @@
+---
+ntp_server: 0.mx.pool.ntp.org
+time_zone: America/Mexico_City
+locale_lang: en_US.utf8
+public_key: ~/.ssh/id_rsa.pub
+private_key: ~/.ssh/id_rsa
