@@ -1,4 +1,5 @@
 ---
 api_port: 8200
 cluster_port: 8201
-install_path: /workarea
+install_path: /workarea/vault
+log_level: info

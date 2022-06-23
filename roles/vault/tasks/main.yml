@@ -21,15 +21,23 @@
     group: vault
     mode: 0700
   loop:
-    - "{{ install_path }}/vault/bin"
-    - "{{ install_path }}/vault/data"
-    - "{{ install_path }}/vault/conf/certs"
-    - "{{ install_path }}/vault/log"
+    - "{{ install_path }}/bin"
+    - "{{ install_path }}/data"
+    - "{{ install_path }}/conf/certs"
+    - "{{ install_path }}/log"
 
 - name: Create vault config
-  ansible.builtin.template: 
+  ansible.builtin.template:
     src: vault.hcl.j2
-    dest: "{{ install_path }}/vault/conf/vault.hcl"
+    dest: "{{ install_path }}/conf/vault.hcl"
+    owner: vault
+    group: vault
+    mode: 0600
+
+- name: Create environment file
+  ansible.builtin.template:
+    src: vault.env.j2
+    dest: "{{ install_path }}/conf/vault.env"
     owner: vault
     group: vault
     mode: 0600
@@ -37,8 +45,24 @@
 - name: Copy vault binary
   copy:
     src: vault
-    dest: "{{ install_path }}/vault/bin/"
+    dest: "{{ install_path }}/bin/"
     owner: vault
     group: vault
     mode: 0700
-  
+
+- name: Create vault service
+  ansible.builtin.template:
+    src: vault.service.j2
+    dest: "/usr/lib/systemd/system/vault.service"
+    owner: vault
+    group: vault
+    mode: 0600
+
+- name: Enable service vault
+  ansible.builtin.systemd:
+    name: vault
+    enabled: yes
+    masked: no
+    state: restarted
+    daemon_reload: yes
+    force: yes

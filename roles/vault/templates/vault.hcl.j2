@@ -4,14 +4,14 @@ ui                      = true
 
 listener "tcp" {
    address              = "0.0.0.0:{{ api_port }}"
-   cluster_addr         = "0.0.0.0:{{ cluster_port }}"
+   cluster_address      = "0.0.0.0:{{ cluster_port }}"
    tls_disable          = true
 }
 
 storage "raft" {
 
    node_id              = "{{ hostname }}"
-   path                 = "{{ install_path }}/vault/data"
+   path                 = "{{ install_path }}/data"
 
 {% for host in groups[group] -%}
 {% if hostvars[host]['vault_host'] != vault_host -%}

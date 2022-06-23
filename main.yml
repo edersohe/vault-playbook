@@ -8,6 +8,7 @@
     - name: Update S.O. and support ansible automation
       role: common
       tags: "{{ group }}"
+
 - name: Vault primary cluster tasks
   hosts: primary_cluster
   gather_facts: yes
