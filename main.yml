@@ -1,6 +1,6 @@
 ---
 - name: Common tasks
-  hosts: common
+  hosts: "{{ group }}"
   gather_facts: no
   vars:
     - group: common
@@ -9,8 +9,19 @@
       role: common
       tags: "{{ group }}"
 
+- name: Vault autounseal cluster tasks
+  hosts: "{{ group }}"
+  gather_facts: yes
+  become: yes
+  vars:
+    - group: autounseal_cluster
+  roles:
+    - name: Create a vault cluster
+      role: vault
+      tags: "{{ group }}"
+
 - name: Vault primary cluster tasks
-  hosts: primary_cluster
+  hosts: "{{ group }}"
   gather_facts: yes
   become: yes
   vars:

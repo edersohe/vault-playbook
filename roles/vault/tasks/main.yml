@@ -1,8 +1,7 @@
 ---
-- name: Add vault group
-  ansible.builtin.group:
-    name: vault
-    state: present
+- name: Destroy current vault - WARNING
+  shell: "systemctl stop vault || true && systemctl disable vault || true && rm -rf {{ install_path }} /usr/lib/systemd/system/vault || true"
+  when: destroy_first is defined and destroy_first == true
 
 - name: Add vault user
   ansible.builtin.user:

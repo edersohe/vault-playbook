@@ -32,6 +32,16 @@ storage "raft" {
 {% endfor -%}
 }
 
+{% if autounseal is defined %}
+seal "transit" {
+   address                     = "{{ autounseal }}"
+   disable_renewal             = false
+   key_name                    = "autounseal"
+   mount_path                  = "transit/"
+   tls_skip_verify             = true
+}
+{% endif %}
+
 {% if api_addr is defined %}
 api_addr                      = "{{ api_addr }}"
 {% else %}

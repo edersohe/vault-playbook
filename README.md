@@ -14,7 +14,7 @@ pipx inject --include-deps --include-apps ansible-core jmespath
 ansible-galaxy install -r requirements.yml
 ```
 
-### TLS - Create example CA and and wilcard certiticate (home.local) for servers
+### TLS - Create example CA and wilcard certiticate (home.local) for servers
 
 ```
 openssl genrsa -des3 -out rootCA.key 4096
@@ -23,7 +23,7 @@ openssl x509 -in rootCA.crt -text -noout
 openssl genrsa -out home.local.key 2048
 openssl req -new -key home.local.key -out home.local.csr -subj "/C=MX/ST=CDMX/O=My Home Lab/CN=*.home.local"
 openssl req -in home.local.csr -noout -text
-openssl x509 -req -in home.local.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -out home.local.crt -days 3650 -sha256
+openssl x509 -req -in home.local.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial -out home.local.crt -days 3650 -extfile <(printf "subjectAltName=DNS:*.home.local")
 openssl x509 -in home.local.crt -text -noout
 ```
 
@@ -36,6 +36,7 @@ openssl x509 -in home.local.crt -text -noout
 ```
 ansible-playbook -b -u vagrant -k --tags=common main.yml
 ansible-playbook -u devops --tags=primary_cluster main.yml
+ansible-playbook -u devops --tags=autounseal_cluster main.yml
 ```
 
 ### Useful commands
@@ -47,14 +48,19 @@ export VAULT_SKIP_VERIFY=true
 export VAULT_FORMAT=yaml
 vault status
 vault operator init -status
-vault operator init -key-shares=3 -key-threshold=2 > tokens.yml
+vault operator init
 vault operator unseal $UNSEAL_KEY
+vault secrets enable transit
+vault write -f transit/keys/autounseal
+vault policy write autounseal auntounseal.hcl
+vault token create -policy=autounseal
 vault operator raft list-peers
 vault operator members
 vault operator raft snapshot save backup.snap
 vault operator raft snapshot restore -force backup.snap
 vault audit enable file file_path=/vault/vault-audit.log
 vault audit list -detailed
+vault audit enable file file_path=/workarea/vault/log/audit.log
 vault monitor -log-level=trace
 ``` 
 
