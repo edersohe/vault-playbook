@@ -50,6 +50,19 @@
     group: vault
     mode: 0700
 
+- name: Copy certificates for tls communication
+  copy:
+    src: "{{ item }}"
+    dest: "{{ install_path }}/conf/certs/"
+    owner: vault
+    group: vault
+    mode: 0600
+  loop:
+    - "{{ tls_name }}.crt"
+    - "{{ tls_name }}.key"
+    - rootCA.crt
+  when: tls_name is defined
+
 - name: Create vault service
   ansible.builtin.template:
     src: vault.service.j2

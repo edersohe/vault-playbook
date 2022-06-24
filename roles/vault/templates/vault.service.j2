@@ -20,7 +20,7 @@ SecureBits=keep-caps
 AmbientCapabilities=CAP_IPC_LOCK
 CapabilityBoundingSet=CAP_SYSLOG CAP_IPC_LOCK
 NoNewPrivileges=yes
-ExecStart={{ install_path }}/bin/vault server -config={{ install_path }}/conf/vault.hcl -log-level={{ log_level }}
+ExecStart={{ install_path }}/bin/vault server -config={{ install_path }}/conf/vault.hcl
 ExecReload=/bin/kill --signal HUP $MAINPID
 KillMode=process
 KillSignal=SIGINT

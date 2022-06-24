@@ -1,26 +1,42 @@
-disable_cache           = true
-disable_mlock           = true
-ui                      = true
-
+{% set schema = 'https' if tls_name is defined else 'http' %}
 listener "tcp" {
-   address              = "0.0.0.0:{{ api_port }}"
-   cluster_address      = "0.0.0.0:{{ cluster_port }}"
-   tls_disable          = true
+   address                    = "0.0.0.0:{{ api_port }}"
+   cluster_address            = "0.0.0.0:{{ cluster_port }}"
+{% if schema == 'https' %}
+   tls_cert_file              = "{{ install_path }}/conf/certs/{{ tls_name }}.crt"
+   tls_key_file               = "{{ install_path }}/conf/certs/{{ tls_name }}.key"
+   tls_client_ca_file         = "{{ install_path }}/conf/certs/rootCA.crt"
+{% else %}
+   tls_disable                = true
+{% endif %}
 }
 
 storage "raft" {
 
-   node_id              = "{{ hostname }}"
-   path                 = "{{ install_path }}/data"
+   node_id                    = "{{ hostname }}"
+   path                       = "{{ install_path }}/data"
 
 {% for host in groups[group] -%}
-{% if hostvars[host]['vault_host'] != vault_host -%}
+{% if hostvars[host]['vault_host'] != vault_host %}
    retry_join {
-      leader_api_addr   = "http://{{ hostvars[host]['vault_host'] }}:{{ api_port }}"
+      leader_api_addr         = "{{ schema }}://{{ hostvars[host]['vault_host'] }}:{{ api_port }}"
+{% if schema == 'https' %}
+      leader_tls_servername   = "{{ hostvars[host]['hostname'] }}.{{ tls_name }}"
+      leader_client_cert_file = "{{ install_path }}/conf/certs/{{ tls_name }}.crt"
+      leader_client_key_file  = "{{ install_path }}/conf/certs/{{ tls_name }}.key"
+      leader_ca_cert_file     = "{{ install_path }}/conf/certs/rootCA.crt"
+{% endif %}
    }
+
 {% endif -%}
 {% endfor -%}
 }
 
-cluster_addr            = "http://{{ vault_host }}:{{ cluster_port }}"
-api_addr                = "{{ api_addr }}"
+{% if api_addr is defined %}
+api_addr                      = "{{ api_addr }}"
+{% else %}
+api_addr                      = "{{ schema }}://{{ vault_host }}:{{ api_port }}"
+{% endif %}
+cluster_addr                  = "https://{{ vault_host }}:{{ cluster_port }}"
+disable_mlock                 = true
+ui                            = true
