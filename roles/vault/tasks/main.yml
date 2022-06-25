@@ -1,6 +1,6 @@
 ---
 
-- name: Waiting... Do you want to continue {% if destroy_first == true %}[destroy_first={{ destroy_first }}] and {% endif %}create vault "{{ group }}"? 
+- name: Waiting... Do you want to continue {% if destroy_first == true %}[destroy_first={{ destroy_first }}] and {% endif %}create or reconfgure vault "{{ group }}"?
   pause:
     seconds: 60
   delegate_to: localhost
@@ -122,7 +122,7 @@
   ignore_errors: true
   register: initialized
 
-- name: 'Initialize vault "{{ group }}" [initialized.stdout={{ initialized.stdout }}, initialized.rc: {{ initialized.rc }}]'
+- name: 'Initialize vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
@@ -135,7 +135,7 @@
   become: false
   when: initialized.rc == 2
 
-- name: 'Waiting... syncronizing vault initilization to vault "{{ group }}" [initialized.stdout={{ initialized.stdout }}, initialized.rc: {{ initialized.rc }}]'
+- name: 'Waiting... syncronizing vault initilization to vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
   ansible.builtin.pause:
     seconds: 30
   delegate_to: localhost
@@ -162,3 +162,17 @@
   throttle: 1
   delegate_to: localhost
   become: false
+
+- name: 'Enable kv and transit secrets engine for vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
+  environment:
+    VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
+    VAULT_SKIP_VERIFY: "true"
+    VAULT_FORMAT: "yaml"
+    VAULT_TOKEN: "{{ root_token }}"
+  shell: |
+    {{ inventory_dir }}/roles/vault/files/vault secrets enable transit
+    {{ inventory_dir }}/roles/vault/files/vault secrets enable kv
+  run_once: true
+  delegate_to: localhost
+  become: false
+  when: initialized.rc == 2

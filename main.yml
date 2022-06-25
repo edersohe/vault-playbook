@@ -16,7 +16,7 @@
   vars:
     - group: unseal_cluster
   roles:
-    - name: Create a vault unseal cluster
+    - name: Create a vault unseal "{{ group }}"
       role: vault
       tags: "{{ group }}"
 
@@ -27,6 +27,6 @@
   vars:
     - group: primary_cluster
   roles:
-    - name: Create a vault primary cluster
+    - name: Create a vault "{{ group }}"
       role: vault
       tags: "{{ group }}"
