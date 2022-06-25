@@ -45,7 +45,7 @@ openssl x509 -in home.local.crt -text -noout
 
 ```
 ansible-playbook -b -u vagrant -k --tags=common main.yml
-ansible-playbook -u devops --tags=autounseal_cluster main.yml
+ansible-playbook -u devops --tags=unseal_cluster main.yml
 ansible-playbook -u devops --tags=primary_cluster main.yml
 ```
 

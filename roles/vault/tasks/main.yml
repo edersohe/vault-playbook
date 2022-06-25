@@ -1,10 +1,24 @@
 ---
-- name: Destroy current vault (WARNING)
+
+- name: Waiting... Do you want to continue {% if destroy_first == true %}[destroy_first={{ destroy_first }}] and {% endif %}create vault "{{ group }}"? 
+  pause:
+    seconds: 60
+  delegate_to: localhost
+  become: false
+
+- name: Destroy "{{ group }}" [destroy_first={{ destroy_first }}]
   shell: |
     systemctl stop vault || true
     systemctl disable vault || true
     rm -rf {{ install_path }} /usr/lib/systemd/system/vault || true
-  when: destroy_first is defined and destroy_first == true
+    userdel vault || true
+    groupdel vault || true
+  when: destroy_first == true
+
+- name: Add group user
+  ansible.builtin.group:
+    name: vault
+    state: present
 
 - name: Add vault user
   ansible.builtin.user:
@@ -14,7 +28,7 @@
     group: vault
     state: present
 
-- name: Create install directory tree
+- name: Create vault "{{ group }}" directory tree for installation
   file:
     path: "{{ item }}"
     state: directory
@@ -28,11 +42,14 @@
     - "{{ install_path }}/conf/certs"
     - "{{ install_path }}/log"
 
-- name: Setting fact schema default http and https if tls_name is defined
+- name: Set schema to "http{% if tls_name != none %}s{% endif %}" [tls_name={{ tls_name }}]
   ansible.builtin.set_fact:
-    schema: "http{% if tls_name is defined %}s{% endif %}"
+    schema: "http{% if tls_name != none %}s{% endif %}"
+  run_once: true
+  delegate_to: localhost
+  become: false
 
-- name: Create vault config
+- name: Create vault config file for vault "{{ group }}"
   ansible.builtin.template:
     src: vault.hcl.j2
     dest: "{{ install_path }}/conf/vault.hcl"
@@ -40,7 +57,7 @@
     group: vault
     mode: 0600
 
-- name: Create environment file
+- name: Create vault environment file for vault "{{ group }}"
   ansible.builtin.template:
     src: vault.env.j2
     dest: "{{ install_path }}/conf/vault.env"
@@ -48,7 +65,7 @@
     group: vault
     mode: 0600
 
-- name: Copy vault binary
+- name: Copy vault binary file for vault "{{ group }}"
   copy:
     src: vault
     dest: "{{ install_path }}/bin/"
@@ -56,7 +73,7 @@
     group: vault
     mode: 0700
 
-- name: Copy certificates for tls communication
+- name: Copy certificates for vault "{{ group }}" TLS communications [tls_name={{ tls_name }}]
   copy:
     src: "{{ item }}"
     dest: "{{ install_path }}/conf/certs/"
@@ -67,9 +84,9 @@
     - "{{ tls_name }}.crt"
     - "{{ tls_name }}.key"
     - rootCA.crt
-  when: tls_name is defined
+  when: tls_name != none
 
-- name: Create vault service
+- name: Create vault "{{ group }}" service
   ansible.builtin.template:
     src: vault.service.j2
     dest: "/usr/lib/systemd/system/vault.service"
@@ -77,7 +94,7 @@
     group: vault
     mode: 0600
 
-- name: Enable service vault
+- name: Enable and start vault "{{ group }}" service
   ansible.builtin.systemd:
     name: vault
     enabled: yes
@@ -86,11 +103,26 @@
     daemon_reload: yes
     force: yes
 
-- name: Pause 30 seconds waiting vault cluster start service and connect nodes
+- name: Waiting... starting vault "{{ group }}" services and internal syncronization
   ansible.builtin.pause:
     seconds: 30
+  delegate_to: localhost
+  become: false
 
-- name: Init cluster
+- name: Check if vault "{{ group }}" is already initialized
+  environment:
+    VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
+    VAULT_SKIP_VERIFY: "true"
+    VAULT_FORMAT: "yaml"
+  shell: |
+    {{ inventory_dir }}/roles/vault/files/vault operator init -status 2>&1
+  run_once: true
+  delegate_to: localhost
+  become: false
+  ignore_errors: true
+  register: initialized
+
+- name: 'Initialize vault "{{ group }}" [initialized.stdout={{ initialized.stdout }}, initialized.rc: {{ initialized.rc }}]'
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
@@ -101,17 +133,23 @@
   run_once: true
   delegate_to: localhost
   become: false
+  when: initialized.rc == 2
 
-- name: Pause 30 seconds waiting vault cluster take initialization
+- name: 'Waiting... syncronizing vault initilization to vault "{{ group }}" [initialized.stdout={{ initialized.stdout }}, initialized.rc: {{ initialized.rc }}]'
   ansible.builtin.pause:
     seconds: 30
+  delegate_to: localhost
+  become: false
+  when: initialized.rc == 2
 
-- name: Load keys for unseal cluster (without autounseal definition)
+- name: Load unseal keys for vault "{{ group }}" [autounseal_cluster={{ autounseal_cluster }}]
   ansible.builtin.include_vars: "{{ inventory_dir }}/secrets/{{ group }}.init.yml"
-  when: autounseal is not defined
+  when: autounseal_cluster == none
   run_once: true
+  delegate_to: localhost
+  become: false
 
-- name: Unseal cluster (without autounseal definition)
+- name: Unseal vault "{{ group }}" [autounseal_cluster={{ autounseal_cluster }}]
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
@@ -120,7 +158,7 @@
     {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[0] }} && sleep 1
     {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[1] }} && sleep 1
     {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[2] }} && sleep 10
-  when: autounseal is not defined
+  when: autounseal_cluster == none
   throttle: 1
   delegate_to: localhost
   become: false

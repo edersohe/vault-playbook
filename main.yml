@@ -14,9 +14,9 @@
   gather_facts: yes
   become: yes
   vars:
-    - group: autounseal_cluster
+    - group: unseal_cluster
   roles:
-    - name: Create a vault cluster
+    - name: Create a vault unseal cluster
       role: vault
       tags: "{{ group }}"
 
@@ -27,6 +27,6 @@
   vars:
     - group: primary_cluster
   roles:
-    - name: Create a vault cluster
+    - name: Create a vault primary cluster
       role: vault
       tags: "{{ group }}"

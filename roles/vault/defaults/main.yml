@@ -1,4 +1,9 @@
 ---
+api_addr: null
 api_port: 8200
 cluster_port: 8201
 install_path: /workarea/vault
+destroy_first: false
+autounseal_policy: false
+autounseal_cluster: null
+tls_name: null

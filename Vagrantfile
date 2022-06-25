@@ -7,15 +7,12 @@ Vagrant.configure('2') do |config|
   end
 
   nodes = [
-    'a1',
-    'a2',
-    'a3',
+    'u1',
+    'u2',
+    'u3',
     'p1',
     'p2',
     'p3',
-    's1',
-    's2',
-    's3'
   ]
 
   nodes.each_with_index { |name, index|

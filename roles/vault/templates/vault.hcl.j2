@@ -12,7 +12,7 @@ listener "tcp" {
 
 storage "raft" {
 
-   node_id                    = "{{ hostname }}"
+   node_id                    = "{{ inventory_hostname }}"
    path                       = "{{ install_path }}/data"
 
 {% for host in groups[group] -%}
@@ -20,7 +20,7 @@ storage "raft" {
    retry_join {
       leader_api_addr         = "{{ schema }}://{{ hostvars[host]['vault_host'] }}:{{ api_port }}"
 {% if schema == 'https' %}
-      leader_tls_servername   = "{{ hostvars[host]['hostname'] }}.{{ tls_name }}"
+      leader_tls_servername   = "{{ host }}.{{ tls_name }}"
       leader_client_cert_file = "{{ install_path }}/conf/certs/{{ tls_name }}.crt"
       leader_client_key_file  = "{{ install_path }}/conf/certs/{{ tls_name }}.key"
       leader_ca_cert_file     = "{{ install_path }}/conf/certs/rootCA.crt"
@@ -31,17 +31,16 @@ storage "raft" {
 {% endfor -%}
 }
 
-{% if autounseal is defined %}
+{% if autounseal_cluster != none %}
 seal "transit" {
-   address                     = "{{ autounseal }}"
+   address                     = "{{ groups[autounseal_cluster]['api_addr'] }}"
    disable_renewal             = false
    key_name                    = "autounseal"
    mount_path                  = "transit/"
    tls_skip_verify             = true
 }
 {% endif %}
-
-{% if api_addr is defined %}
+{% if api_addr != none %}
 api_addr                      = "{{ api_addr }}"
 {% else %}
 api_addr                      = "{{ schema }}://{{ vault_host }}:{{ api_port }}"
