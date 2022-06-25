@@ -4,3 +4,4 @@ roles/vault/files/vault
 roles/vault/files/*.crt
 roles/vault/files/*.key
 files/
+secrets/

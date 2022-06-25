@@ -1,4 +1,3 @@
-{% set schema = 'https' if tls_name is defined else 'http' %}
 listener "tcp" {
    address                    = "0.0.0.0:{{ api_port }}"
    cluster_address            = "0.0.0.0:{{ cluster_port }}"

@@ -1,6 +1,9 @@
 ---
-- name: Destroy current vault - WARNING
-  shell: "systemctl stop vault || true && systemctl disable vault || true && rm -rf {{ install_path }} /usr/lib/systemd/system/vault || true"
+- name: Destroy current vault (WARNING)
+  shell: |
+    systemctl stop vault || true
+    systemctl disable vault || true
+    rm -rf {{ install_path }} /usr/lib/systemd/system/vault || true
   when: destroy_first is defined and destroy_first == true
 
 - name: Add vault user
@@ -24,6 +27,10 @@
     - "{{ install_path }}/data"
     - "{{ install_path }}/conf/certs"
     - "{{ install_path }}/log"
+
+- name: Setting fact schema default http and https if tls_name is defined
+  ansible.builtin.set_fact:
+    schema: "http{% if tls_name is defined %}s{% endif %}"
 
 - name: Create vault config
   ansible.builtin.template:
@@ -78,3 +85,42 @@
     state: restarted
     daemon_reload: yes
     force: yes
+
+- name: Pause 30 seconds waiting vault cluster start service and connect nodes
+  ansible.builtin.pause:
+    seconds: 30
+
+- name: Init cluster
+  environment:
+    VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
+    VAULT_SKIP_VERIFY: "true"
+    VAULT_FORMAT: "yaml"
+  shell: |
+    mkdir -p {{ inventory_dir }}/secrets
+    {{ inventory_dir }}/roles/vault/files/vault operator init > {{ inventory_dir }}/secrets/{{ group }}.init.yml
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Pause 30 seconds waiting vault cluster take initialization
+  ansible.builtin.pause:
+    seconds: 30
+
+- name: Load keys for unseal cluster (without autounseal definition)
+  ansible.builtin.include_vars: "{{ inventory_dir }}/secrets/{{ group }}.init.yml"
+  when: autounseal is not defined
+  run_once: true
+
+- name: Unseal cluster (without autounseal definition)
+  environment:
+    VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
+    VAULT_SKIP_VERIFY: "true"
+    VAULT_FORMAT: "yaml"
+  shell: |
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[0] }} && sleep 1
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[1] }} && sleep 1
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[2] }} && sleep 10
+  when: autounseal is not defined
+  throttle: 1
+  delegate_to: localhost
+  become: false
