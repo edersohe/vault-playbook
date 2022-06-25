@@ -1,2 +1,6 @@
 .vagrant
-files/*
+roles/vault/files/certs/
+roles/vault/files/vault
+roles/vault/files/*.crt
+roles/vault/files/*.key
+files/

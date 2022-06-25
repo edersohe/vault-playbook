@@ -1,4 +1,4 @@
-### Vagrant
+### Vagrant (Home Lab Servers)
 
 ```
 vagrant up
@@ -7,14 +7,28 @@ vagrant up
 ### Ansible denpendencies
 
 ```
-apt install sshpass
-dnf install sshpass
+apt install sshpass ; #debian/ubuntu
+dnf install sshpass ; #RHEL/Rocky/Alma/Oracle/Fedora
 pipx install ansible-core
 pipx inject --include-deps --include-apps ansible-core jmespath
 ansible-galaxy install -r requirements.yml
 ```
 
-### TLS - Create example CA and wilcard certiticate (home.local) for servers
+### Vault Binary
+
+> put the vault binary file into roles/vault/files named just vault without prefixes, suffixes, version or extension.
+
+### Enable TLS communication for vault
+
+> tls_name variable group(cluster) into inventory.ini enable TLS communication for vault
+
+> tls_name variable has to be equal to the name of server certificates without extension, ex."tls_name=home.local" when home.local.crt and home.local.key are the servers certificates
+
+> when tls_name is defined 3 files are needed into directory roles/vault/files ex. for "tls_name=home.local" the files home.local.crt, home.local.key and rootCA.crt are needed
+
+> for convention CA certificate always be named rootCA.crt
+
+#### Example for certificates generation
 
 ```
 openssl genrsa -des3 -out rootCA.key 4096
@@ -27,16 +41,12 @@ openssl x509 -req -in home.local.csr -CA rootCA.crt -CAkey rootCA.key -CAcreates
 openssl x509 -in home.local.crt -text -noout
 ```
 
-> tls_name variable for inventory.ini is the name of server certificates without extension example home.local
-
-> when tls_name is defined into inventory.ini 3 files are needed into files directory at root of this project level example: home.local.crt, home.local.key and rootCA.crt
-
 ### Run playbooks
 
 ```
 ansible-playbook -b -u vagrant -k --tags=common main.yml
-ansible-playbook -u devops --tags=primary_cluster main.yml
 ansible-playbook -u devops --tags=autounseal_cluster main.yml
+ansible-playbook -u devops --tags=primary_cluster main.yml
 ```
 
 ### Useful commands
@@ -72,3 +82,4 @@ vault monitor -log-level=trace
 * https://github.com/hashicorp/vault-selinux-policies
 * https://gist.github.com/fntlnz/cf14feb5a46b2eda428e000157447309
 * https://stackoverflow.com/questions/5051655/what-is-the-purpose-of-the-nodes-argument-in-openssl
+* https://learn.hashicorp.com/tutorials/vault/autounseal-transit?in=vault/auto-unseal
