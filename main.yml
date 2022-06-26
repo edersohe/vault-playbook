@@ -9,7 +9,7 @@
       role: common
       tags: "{{ group }}"
 
-- name: Vault autounseal cluster tasks
+- name: Vault "{{ group }}" tasks
   hosts: "{{ group }}"
   gather_facts: yes
   become: yes
@@ -20,7 +20,7 @@
       role: vault
       tags: "{{ group }}"
 
-- name: Vault primary cluster tasks
+- name: Vault "{{ group }}" tasks
   hosts: "{{ group }}"
   gather_facts: yes
   become: yes

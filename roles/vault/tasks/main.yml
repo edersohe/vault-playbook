@@ -1,12 +1,11 @@
 ---
-
-- name: Waiting... Do you want to continue {% if destroy_first == true %}[destroy_first={{ destroy_first }}] and {% endif %}create or reconfgure vault "{{ group }}"?
+- name: Waiting... Do you want to continue {% if destroy_first == true %}(destroy_first={{ destroy_first }}) and {% endif %}create or reconfgure vault "{{ group }}"?
   pause:
     seconds: 60
   delegate_to: localhost
   become: false
 
-- name: Destroy "{{ group }}" [destroy_first={{ destroy_first }}]
+- name: Destroy "{{ group }}" (destroy_first={{ destroy_first }})
   shell: |
     systemctl stop vault || true
     systemctl disable vault || true
@@ -42,7 +41,24 @@
     - "{{ install_path }}/conf/certs"
     - "{{ install_path }}/log"
 
-- name: Set schema to "http{% if tls_name != none %}s{% endif %}" [tls_name={{ tls_name }}]
+- name: Load autounseal client token for vault "{{ group }}" (autounseal_cluster={{ autounseal_cluster }})
+  ansible.builtin.include_vars:
+    file: "{{ inventory_dir }}/secrets/{{ autounseal_cluster }}.autounseal.yml"
+    name: autounseal
+  when: autounseal_cluster != none
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Set autounseal_api_addr ({{ autounseal_cluster }}.api_addr={{ hostvars[groups[autounseal_cluster][0]]['api_addr'] }})
+  ansible.builtin.set_fact:
+    autounseal_api_addr: "{{ hostvars[groups[autounseal_cluster][0]]['api_addr'] }}"
+  when: autounseal_cluster != none
+  run_once: true
+  delegate_to: localhost
+  become: false
+
+- name: Set schema to "http{% if tls_name != none %}s{% endif %}" (tls_name={{ tls_name }})
   ansible.builtin.set_fact:
     schema: "http{% if tls_name != none %}s{% endif %}"
   run_once: true
@@ -73,7 +89,7 @@
     group: vault
     mode: 0700
 
-- name: Copy certificates for vault "{{ group }}" TLS communications [tls_name={{ tls_name }}]
+- name: Copy certificates for vault "{{ group }}" TLS communications (tls_name={{ tls_name }})
   copy:
     src: "{{ item }}"
     dest: "{{ install_path }}/conf/certs/"
@@ -122,7 +138,7 @@
   ignore_errors: true
   register: initialized
 
-- name: 'Initialize vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
+- name: 'Initialize vault "{{ group }}" (initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}})'
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
@@ -135,43 +151,47 @@
   become: false
   when: initialized.rc == 2
 
-- name: 'Waiting... syncronizing vault initilization to vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
+- name: 'Waiting... syncronizing vault initilization to vault "{{ group }}" (initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}})'
   ansible.builtin.pause:
     seconds: 30
   delegate_to: localhost
   become: false
   when: initialized.rc == 2
 
-- name: Load unseal keys for vault "{{ group }}" [autounseal_cluster={{ autounseal_cluster }}]
-  ansible.builtin.include_vars: "{{ inventory_dir }}/secrets/{{ group }}.init.yml"
-  when: autounseal_cluster == none
+- name: Load unseal keys for vault "{{ group }}"
+  ansible.builtin.include_vars:
+    file: "{{ inventory_dir }}/secrets/{{ group }}.init.yml"
+    name: init
   run_once: true
   delegate_to: localhost
   become: false
 
-- name: Unseal vault "{{ group }}" [autounseal_cluster={{ autounseal_cluster }}]
+- name: Unseal vault "{{ group }}" (autounseal_cluster={{ autounseal_cluster }})
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
     VAULT_FORMAT: "yaml"
   shell: |
-    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[0] }} && sleep 1
-    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[1] }} && sleep 1
-    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ unseal_keys_hex[2] }} && sleep 10
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ init.unseal_keys_hex[0] }} && sleep 1
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ init.unseal_keys_hex[1] }} && sleep 1
+    {{ inventory_dir }}/roles/vault/files/vault operator unseal {{ init.unseal_keys_hex[2] }} && sleep 10
   when: autounseal_cluster == none
   throttle: 1
   delegate_to: localhost
   become: false
 
-- name: 'Enable kv and transit secrets engine for vault "{{ group }}" [initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}}]'
+- name: 'Enable secrets engines and autounseal policies for vault "{{ group }}" (initialized={stdout: "{{ initialized.stdout }}", rc: {{ initialized.rc }}})'
   environment:
     VAULT_ADDR: "{{ schema }}://{{ ansible_host }}:{{ api_port }}"
     VAULT_SKIP_VERIFY: "true"
     VAULT_FORMAT: "yaml"
-    VAULT_TOKEN: "{{ root_token }}"
+    VAULT_TOKEN: "{{ init.root_token }}"
   shell: |
     {{ inventory_dir }}/roles/vault/files/vault secrets enable transit
     {{ inventory_dir }}/roles/vault/files/vault secrets enable kv
+    {{ inventory_dir }}/roles/vault/files/vault write -f transit/keys/autounseal
+    {{ inventory_dir }}/roles/vault/files/vault policy write autounseal {{ inventory_dir }}/roles/vault/files/autounseal.hcl
+    {{ inventory_dir }}/roles/vault/files/vault token create -policy=autounseal > {{ inventory_dir }}/secrets/{{ group }}.autounseal.yml
   run_once: true
   delegate_to: localhost
   become: false

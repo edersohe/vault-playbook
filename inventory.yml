@@ -34,17 +34,16 @@ all:
         u2: {}
         u3: {}
       vars:
-        # api_addr: http://192.168.1.100:6200
-        # tls_name: home.local
-        # destroy_first: true
-        # autounseal_policy: true
+        api_addr: http://192.168.1.100:6200
+        tls_name: home.local
+        destroy_first: true
     primary_cluster:
       hosts:
         p1: {}
         p2: {}
         p3: {}
       vars:
-        # api_addr: http://192.168.1.100:7200
-        # tls_name: home.local
-        # destroy_first: true
-        # autounseal_cluster: unseal_cluster
+        api_addr: http://192.168.1.100:7200
+        tls_name: home.local
+        destroy_first: true
+        autounseal_cluster: unseal_cluster

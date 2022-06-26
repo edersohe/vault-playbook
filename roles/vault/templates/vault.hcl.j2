@@ -33,12 +33,13 @@ storage "raft" {
 
 {% if autounseal_cluster != none %}
 seal "transit" {
-   address                     = "{{ groups[autounseal_cluster]['api_addr'] }}"
+   address                     = "{{ autounseal_api_addr }}"
    disable_renewal             = false
    key_name                    = "autounseal"
    mount_path                  = "transit/"
    tls_skip_verify             = true
 }
+
 {% endif %}
 {% if api_addr != none %}
 api_addr                      = "{{ api_addr }}"
